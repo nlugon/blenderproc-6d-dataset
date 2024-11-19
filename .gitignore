@@ -6,7 +6,7 @@ build/
 blender
 .idea/
 .vscode/
-output/
+*/output*/
 debug/
 resources/AMASS
 resources/cctextures*
@@ -19,8 +19,11 @@ resources/IKEA
 resources/haven
 resources/pix3d
 resources/front_3D/3D_front_mapping_generated.csv
+resources/
+*/resources/
 blenderproc/external/vhacd
 *.blend1
+*.blend
 .vscode
 *.pyc
 *.swp
@@ -31,3 +34,4 @@ docs/source/images/
 docs/source/examples/
 docs/source/*md
 blenderproc_resources/
+XPLORE2/

@@ -10,38 +10,45 @@ parser.add_argument('cc_textures_path', nargs='?', default="resources/cctextures
 parser.add_argument('output_dir', nargs='?', help="Path to where the final files will be saved ")
 args = parser.parse_args()
 
+blend_file_path = "/home/noah/Desktop/Metalbar-noCamOrLight.blend"
+
 bproc.init()
 
-# load a random sample of bop objects into the scene
-sampled_bop_objs = bproc.loader.load_bop_objs(bop_dataset_path = os.path.join(args.bop_parent_path, args.bop_dataset_name),
-                                  mm2m = True,
-                                  sample_objects = True,
-                                  num_of_objs_to_sample = 10)
 
-# load distractor bop objects
-distractor_bop_objs = bproc.loader.load_bop_objs(bop_dataset_path = os.path.join(args.bop_parent_path, 'tless'),
-                                     model_type = 'cad',
-                                     mm2m = True,
-                                     sample_objects = True,
-                                     num_of_objs_to_sample = 3)
-distractor_bop_objs += bproc.loader.load_bop_objs(bop_dataset_path = os.path.join(args.bop_parent_path, 'lm'),
+
+
+
+sampled_bop_objs = bproc.loader.load_blend(blend_file_path)
+
+
+# If metalbar texture not being imported, try this: (change filepath)
+# bpy.ops.image.open(filepath="/home/noah/Desktop/metalbar_all.jpeg", directory="/home/noah/Desktop/", files=[{"name":"metalbar_all.jpeg", "name":"metalbar_all.jpeg"}], relative_path=True, show_multiview=False)
+
+
+
+
+
+distractor_bop_objs = bproc.loader.load_bop_objs(bop_dataset_path = os.path.join(args.bop_parent_path, 'lm'),
                                       mm2m = True,
                                       sample_objects = True,
-                                      num_of_objs_to_sample = 3,
+                                      num_of_objs_to_sample = 5,
                                       obj_instances_limit = 1)
 
-# load BOP datset intrinsics
+# Would need to replace this by Xplore's camera intrinsics
 bproc.loader.load_bop_intrinsics(bop_dataset_path = os.path.join(args.bop_parent_path, args.bop_dataset_name))
 
-# set shading and physics properties and randomize PBR materials
+# set physics properties
 for j, obj in enumerate(sampled_bop_objs + distractor_bop_objs):
     obj.enable_rigidbody(True, friction = 100.0, linear_damping = 0.99, angular_damping = 0.99)
+
+# set shading and randomize materials for distractor objects
+for j, obj in enumerate(distractor_bop_objs):
     obj.set_shading_mode('auto')
         
     mat = obj.get_materials()[0]
-    if obj.get_cp("bop_dataset_name") in ['itodd', 'tless']:
-        grey_col = np.random.uniform(0.1, 0.9)   
-        mat.set_principled_shader_value("Base Color", [grey_col, grey_col, grey_col, 1])        
+    # if obj.get_cp("bop_dataset_name") in ['itodd', 'tless']:
+    #     grey_col = np.random.uniform(0.1, 0.9)   
+    #     mat.set_principled_shader_value("Base Color", [grey_col, grey_col, grey_col, 1])        
     mat.set_principled_shader_value("Roughness", np.random.uniform(0, 1.0))
     mat.set_principled_shader_value("Specular", np.random.uniform(0, 1.0))
         
@@ -70,7 +77,7 @@ location = bproc.sampler.shell(center = [0, 0, 0], radius_min = 1, radius_max = 
                         elevation_min = 5, elevation_max = 89, uniform_volume = False)
 light_point.set_location(location)
 
-# sample CC Texture and assign to room planes
+# sample CC Texture and assign to room planes -> need to "blenderproc download cc_textures ~/Blenderproc/resources" first!
 cc_textures = bproc.loader.load_ccmaterials(args.cc_textures_path)
 random_cc_texture = np.random.choice(cc_textures)
 for plane in room_planes:
@@ -98,39 +105,55 @@ bproc.object.simulate_physics_and_fix_final_poses(min_simulation_time=3,
 # BVH tree used for camera obstacle checks
 bop_bvh_tree = bproc.object.create_bvh_tree_multi_objects(sampled_bop_objs + distractor_bop_objs)
 
-poses = 0
-while poses < 10:
-    # Sample location
-    location = bproc.sampler.shell(center = [0, 0, 0],
-                            radius_min = 0.61,
-                            radius_max = 1.24,
-                            elevation_min = 5,
-                            elevation_max = 89,
-                            uniform_volume = False)
-    # Determine point of interest in scene as the object closest to the mean of a subset of objects
-    poi = bproc.object.compute_poi(np.random.choice(sampled_bop_objs, size=10))
-    # Compute rotation based on vector going from location towards poi
-    rotation_matrix = bproc.camera.rotation_from_forward_vec(poi - location, inplane_rot=np.random.uniform(-0.7854, 0.7854))
-    # Add homog cam pose based on location an rotation
-    cam2world_matrix = bproc.math.build_transformation_mat(location, rotation_matrix)
+
+
+
+
+
+
+
+
+### Uncomment what is below to produce BOP dataset
+
+
+
+
+# poses = 0
+# while poses < 10:
+#     # Sample location
+#     location = bproc.sampler.shell(center = [0, 0, 0],
+#                             radius_min = 0.61,
+#                             radius_max = 1.24,
+#                             elevation_min = 5,
+#                             elevation_max = 89,
+#                             uniform_volume = False)
+#     # Determine point of interest in scene as the object closest to the mean of a subset of objects
+#     poi = bproc.object.compute_poi(np.random.choice(sampled_bop_objs, size=10))
+#     # Compute rotation based on vector going from location towards poi
+#     rotation_matrix = bproc.camera.rotation_from_forward_vec(poi - location, inplane_rot=np.random.uniform(-0.7854, 0.7854))
+#     # Add homog cam pose based on location an rotation
+#     cam2world_matrix = bproc.math.build_transformation_mat(location, rotation_matrix)
     
-    # Check that obstacles are at least 0.3 meter away from the camera and make sure the view interesting enough
-    if bproc.camera.perform_obstacle_in_view_check(cam2world_matrix, {"min": 0.3}, bop_bvh_tree):
-        # Persist camera pose
-        bproc.camera.add_camera_pose(cam2world_matrix)
-        poses += 1
+#     # Check that obstacles are at least 0.3 meter away from the camera and make sure the view interesting enough
+#     if bproc.camera.perform_obstacle_in_view_check(cam2world_matrix, {"min": 0.3}, bop_bvh_tree):
+#         # Persist camera pose
+#         bproc.camera.add_camera_pose(cam2world_matrix)
+#         poses += 1
 
-# activate depth rendering
-bproc.renderer.enable_depth_output(activate_antialiasing=False)
-bproc.renderer.set_max_amount_of_samples(50)
 
-# render the whole pipeline
-data = bproc.renderer.render()
 
-# Write data in bop format
-bproc.writer.write_bop(os.path.join(args.output_dir, 'bop_data'),
-                       dataset = args.bop_dataset_name,
-                       depths = data["depth"],
-                       colors = data["colors"], 
-                       color_file_format = "JPEG",
-                       ignore_dist_thres = 10)
+
+# # activate depth rendering
+# bproc.renderer.enable_depth_output(activate_antialiasing=False)
+# bproc.renderer.set_max_amount_of_samples(50)
+
+# # render the whole pipeline
+# data = bproc.renderer.render()
+
+# # Write data in bop format
+# bproc.writer.write_bop(os.path.join(args.output_dir, 'bop_data'),
+#                        dataset = args.bop_dataset_name,
+#                        depths = data["depth"],
+#                        colors = data["colors"], 
+#                        color_file_format = "JPEG",
+#                        ignore_dist_thres = 10)
